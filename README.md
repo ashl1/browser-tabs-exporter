@@ -226,7 +226,7 @@ and resets the target to My Drive.
    **APIs & Services → Library** → **Google Picker API** → **Enable**.
 3. **Create a browser API key**: **Credentials → Create credentials → API
    key**. Restrict it: *Application restrictions* → **Websites** → add your
-   Pages origin (`https://<your-username>.github.io`); *API restrictions* →
+   Pages origin (`https://<your-username>.github.io/*`); *API restrictions* →
    **Google Picker API** only.
 4. **Find the project number**: **IAM & Admin → Settings** → *Project number*
    (numeric, not the project ID). The Picker's `setAppId()` needs it so the

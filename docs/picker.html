@@ -79,7 +79,13 @@
     }
 
     function createPicker() {
-      const view = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+      // Use the default (DOCS) view rooted at My Drive rather than the
+      // FOLDERS view: FOLDERS shows a flat, searchable list of *every* folder
+      // (all nested children at once), whereas the DOCS view restricted to
+      // folders and started at 'root' navigates the folder tree one level at a
+      // time with breadcrumbs, like the normal Drive UI.
+      const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
+        .setParent('root')
         .setIncludeFolders(true)
         .setSelectFolderEnabled(true)
         .setMimeTypes('application/vnd.google-apps.folder');
