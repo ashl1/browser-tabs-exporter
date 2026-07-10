@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Tab Snapshot — Markdown Export",
+  "short_name": "Tab Snapshot",
+  "version": "1.0.0",
+  "description": "Export every open tab (windows, tab groups, private) to structured Markdown — locally or straight to Google Drive.",
+  "incognito": "spanning",
+  "permissions": [
+    "tabs",
+    "tabGroups",
+    "downloads",
+    "identity",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.googleapis.com/*"
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Tab Snapshot — export tabs to Markdown",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "tab-snapshot@example.com",
+      "strict_min_version": "139.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  }
+}

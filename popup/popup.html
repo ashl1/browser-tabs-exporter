@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Tab Snapshot</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <h1>Tab Snapshot</h1>
+    <p class="subtitle">Export open tabs as Markdown</p>
+  </header>
+
+  <main>
+    <button id="export-md" class="btn btn-primary" type="button">
+      <span class="btn-icon" aria-hidden="true">&#8681;</span>
+      Export All to Markdown
+    </button>
+
+    <button id="export-drive" class="btn" type="button">
+      <span class="btn-icon" aria-hidden="true">&#9729;</span>
+      Export All to Google Drive
+    </button>
+
+    <button id="export-incognito" class="btn" type="button">
+      <span class="btn-icon" aria-hidden="true">&#127913;</span>
+      Export Incognito Only
+    </button>
+
+    <hr>
+
+    <button id="close-all" class="btn btn-danger" type="button">
+      <span class="btn-icon" aria-hidden="true">&#10005;</span>
+      Close All Tabs
+    </button>
+
+    <section id="confirm-panel" class="confirm" hidden>
+      <p id="confirm-text" class="confirm-text"></p>
+      <div class="confirm-actions">
+        <button id="confirm-close" class="btn btn-danger" type="button">Yes, close everything</button>
+        <button id="cancel-close" class="btn" type="button">Cancel</button>
+      </div>
+    </section>
+
+    <p id="status" class="status" role="status" aria-live="polite" hidden></p>
+  </main>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
