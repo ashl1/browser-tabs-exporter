@@ -75,13 +75,41 @@ function showLocalFileLink(download) {
   ui.statusLink.textContent = download.filename;
   ui.statusLink.title = 'Show in folder';
   ui.statusLink.hidden = false;
-  statusLinkAction = async () => {
-    const [item] = await api.downloads.search({ id: download.id });
-    if (!item || item.exists === false) {
-      throw new Error("That file is no longer in the browser's download history.");
-    }
-    await api.downloads.show(download.id);
-  };
+  statusLinkAction = () => revealDownload(download);
+}
+
+/**
+ * Reveal a saved download in the system file manager.
+ *
+ * downloads.show() must be the FIRST call here: Firefox stops treating the
+ * code as user input handling after an await, and refuses the reveal.
+ * Firefox also resolves show() with `false` instead of rejecting when it
+ * cannot reach a file manager (e.g. sandboxed Snap/Flatpak builds), so a
+ * refusal falls back to the Downloads folder, then to showing the path.
+ */
+async function revealDownload(download) {
+  let shown = false;
+  try {
+    shown = (await api.downloads.show(download.id)) !== false;
+  } catch {
+    // Unknown download id or gesture refused — diagnosed below.
+  }
+
+  // Firefox download ids are per-session, so a persisted record can point at
+  // nothing (or at a different item) after a restart — verify by filename.
+  const [item] = await api.downloads.search({ id: download.id });
+  const basename = item?.filename?.split(/[\\/]/).pop();
+  if (!item || item.exists === false || basename !== download.filename) {
+    throw new Error("That file is no longer in the browser's download history.");
+  }
+  if (shown) return;
+
+  try {
+    await api.downloads.showDefaultFolder();
+    setStatus(`Opened the Downloads folder — the file is ${item.filename}`, 'info');
+  } catch {
+    setStatus(`Could not open a file manager. The file is at ${item.filename}`, 'info');
+  }
 }
 
 function setBusy(busy) {

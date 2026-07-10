@@ -32,7 +32,12 @@ Every export also shows the created file's name as a link: Drive exports open
 the file on Google Drive, and local exports reveal the saved `.md` file in the
 system file manager (extensions cannot link `file://` URLs directly, so this
 uses `downloads.show()`; if the entry was cleared from the browser's download
-history, a message says so).
+history, a message says so). Two Firefox quirks are handled: `show()` must be
+called before any `await` in the click handler or Firefox no longer counts it
+as user input and refuses it, and Firefox resolves `show()` with `false`
+instead of rejecting when it cannot reach a file manager (e.g. sandboxed
+Snap/Flatpak builds) — in that case the extension opens the Downloads folder
+instead, or shows the file's full path.
 
 ### Markdown format
 
