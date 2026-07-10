@@ -30,7 +30,7 @@ const DRIVE_UPLOAD_URL =
 // Hosted Google Picker page (docs/picker.html on GitHub Pages) used to pick
 // the target Drive folder. See README.md → "Choosing a Drive folder".
 const PICKER_PAGE_URL =
-  'https://your-github-username.github.io/save_tabs_extension/picker.html';
+  'https://ashl1.github.io/browser-tabs-exporter/picker.html';
 
 // storage.session is wiped when the browser closes — the right lifetime for
 // an access token. Fall back to storage.local on older browsers.
