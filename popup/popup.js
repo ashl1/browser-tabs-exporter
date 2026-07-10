@@ -80,11 +80,12 @@ function guarded(handler) {
  * stealing focus is enough). The background script picks the right URL
  * strategy per browser and outlives the popup.
  */
-async function downloadMarkdown(markdown, filename) {
+async function downloadMarkdown(markdown, filename, statusMessage) {
   const response = await api.runtime.sendMessage({
     type: 'download-markdown',
     markdown,
     filename,
+    statusMessage,
   });
   if (!response) {
     throw new Error('No response from the background script. Please try again.');
@@ -102,8 +103,9 @@ const exportAllToMarkdown = guarded(async () => {
     setStatus('No tabs found to export.', 'info');
     return;
   }
-  await downloadMarkdown(formatMarkdown(snapshot), makeFilename('tabs-export'));
-  setStatus(successMessage(snapshot.counts), 'success');
+  const message = successMessage(snapshot.counts);
+  await downloadMarkdown(formatMarkdown(snapshot), makeFilename('tabs-export'), message);
+  setStatus(message, 'success');
 });
 
 // --- Action 2: Export all tabs to Google Drive -----------------------------
@@ -116,10 +118,12 @@ const exportAllToDrive = guarded(async () => {
   }
   setStatus('Connecting to Google Drive…', 'info');
 
+  const message = successMessage(snapshot.counts);
   const response = await api.runtime.sendMessage({
     type: 'drive-export',
     markdown: formatMarkdown(snapshot),
     filename: makeFilename('tabs-export'),
+    statusMessage: message,
   });
 
   if (!response) {
@@ -128,7 +132,7 @@ const exportAllToDrive = guarded(async () => {
   if (!response.ok) {
     throw new Error(response.error || 'Google Drive export failed.');
   }
-  setStatus(successMessage(snapshot.counts), 'success');
+  setStatus(message, 'success');
   showDriveFileLink(response.file);
 });
 
@@ -151,11 +155,13 @@ const exportIncognitoOnly = guarded(async () => {
     setStatus('No incognito tabs are open right now.', 'info');
     return;
   }
+  const message = successMessage(snapshot.counts);
   await downloadMarkdown(
     formatMarkdown(snapshot, { heading: 'Incognito tab export' }),
     makeFilename('incognito-tabs-export'),
+    message,
   );
-  setStatus(successMessage(snapshot.counts), 'success');
+  setStatus(message, 'success');
 });
 
 // --- Action 4: Close all tabs (with confirmation) ---------------------------
@@ -181,6 +187,26 @@ const confirmCloseAll = guarded(async () => {
   await api.runtime.sendMessage({ type: 'close-all-tabs' });
   setStatus('Closing all tabs…', 'info');
 });
+
+// --- Last export status replay ----------------------------------------------
+
+const LAST_STATUS_KEY = 'lastExportStatus'; // must match background.js
+
+/**
+ * Exports usually settle after this popup has already died — the OS save
+ * dialog or Google's auth window takes focus, which closes it. The background
+ * persists each successful export's status, and it is replayed here on the
+ * next open, prefixed with "Previously" (with the Drive file link, if any).
+ */
+async function restoreLastExportStatus() {
+  const stored = await api.storage.local.get(LAST_STATUS_KEY);
+  const record = stored?.[LAST_STATUS_KEY];
+  if (!record?.message) return;
+  setStatus(`Previously ${record.message}`, 'success');
+  if (record.file) showDriveFileLink(record.file);
+}
+
+restoreLastExportStatus().catch((error) => console.error(error));
 
 // --- Wiring ------------------------------------------------------------------
 

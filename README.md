@@ -19,6 +19,13 @@ After any successful export the popup shows:
 
 > `N tabs for M windows and K tabs groups are exported!`
 
+Exports usually settle after the popup has already closed — the OS save
+dialog or Google's auth window takes focus, which closes it. So the result of
+the last successful export is persisted, and the next time the popup opens it
+replays the same status (including the Drive file link) prefixed with
+**"Previously"**, e.g. `Previously 12 tabs for 2 windows and 1 tabs groups
+are exported!`. It stays until the next export replaces it.
+
 ### Markdown format
 
 - Tabs inside a tab group are listed under `## Group: [Group Name]`.

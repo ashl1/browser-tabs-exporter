@@ -270,6 +270,23 @@ function flashBadge(text, color) {
 }
 
 // ---------------------------------------------------------------------------
+// Last export status — replayed by the popup on next open ("Previously …").
+//
+// Persisted here rather than in the popup because the popup usually dies
+// before an export settles: the OS save dialog (local export) or Google's
+// auth window (Drive export) takes focus, which closes it.
+// ---------------------------------------------------------------------------
+
+const LAST_STATUS_KEY = 'lastExportStatus'; // must match popup/popup.js
+
+function saveLastExportStatus(statusMessage, file = null) {
+  if (typeof statusMessage !== 'string' || !statusMessage) return Promise.resolve();
+  return api.storage.local.set({
+    [LAST_STATUS_KEY]: { message: statusMessage, file, at: Date.now() },
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Message router. Uses the sendResponse/return-true idiom because Chromium
 // does not honour a Promise returned from an onMessage listener.
 // ---------------------------------------------------------------------------
@@ -278,8 +295,9 @@ api.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   switch (message?.type) {
     case 'drive-export':
       exportToDrive(message)
-        .then((result) => {
+        .then(async (result) => {
           flashBadge('✓', '#188038');
+          await saveLastExportStatus(message.statusMessage, result.file);
           sendResponse(result);
         })
         .catch((error) => {
@@ -291,7 +309,10 @@ api.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
     case 'download-markdown':
       downloadMarkdownFile(message)
-        .then(sendResponse)
+        .then(async (result) => {
+          await saveLastExportStatus(message.statusMessage);
+          sendResponse(result);
+        })
         .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
       return true;
 
