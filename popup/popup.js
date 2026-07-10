@@ -32,6 +32,7 @@ function setStatus(message, kind = 'info') {
   ui.statusLink.hidden = true;
   ui.statusLink.removeAttribute('href');
   ui.statusLink.textContent = '';
+  statusLinkAction = null;
   ui.status.className = `status ${kind}`;
   ui.status.hidden = false;
 }
@@ -42,6 +43,21 @@ function clearStatus() {
   ui.statusLink.hidden = true;
 }
 
+/**
+ * The status link either navigates like a normal anchor (Drive webViewLink)
+ * or runs a JS action — extensions cannot link to file:// URLs, so local
+ * files are revealed in the system file manager via downloads.show().
+ */
+let statusLinkAction = null;
+
+ui.statusLink.addEventListener('click', (event) => {
+  if (!statusLinkAction) return; // real href: let the browser navigate
+  event.preventDefault();
+  statusLinkAction().catch((error) =>
+    setStatus(error?.message || String(error), 'error'),
+  );
+});
+
 /** Show a clickable link to the created Drive file below the status text. */
 function showDriveFileLink(file) {
   if (!file?.webViewLink && !file?.id) return;
@@ -50,6 +66,22 @@ function showDriveFileLink(file) {
   ui.statusLink.textContent = file.name || 'Open in Google Drive';
   ui.statusLink.title = 'Open in Google Drive';
   ui.statusLink.hidden = false;
+}
+
+/** Show the locally saved file's name; clicking reveals it in the file manager. */
+function showLocalFileLink(download) {
+  if (!download?.filename || typeof download.id !== 'number') return;
+  ui.statusLink.href = '#';
+  ui.statusLink.textContent = download.filename;
+  ui.statusLink.title = 'Show in folder';
+  ui.statusLink.hidden = false;
+  statusLinkAction = async () => {
+    const [item] = await api.downloads.search({ id: download.id });
+    if (!item || item.exists === false) {
+      throw new Error("That file is no longer in the browser's download history.");
+    }
+    await api.downloads.show(download.id);
+  };
 }
 
 function setBusy(busy) {
@@ -80,12 +112,13 @@ function guarded(handler) {
  * stealing focus is enough). The background script picks the right URL
  * strategy per browser and outlives the popup.
  */
-async function downloadMarkdown(markdown, filename, statusMessage) {
+async function downloadMarkdown(markdown, filename, statusMessage, method) {
   const response = await api.runtime.sendMessage({
     type: 'download-markdown',
     markdown,
     filename,
     statusMessage,
+    method,
   });
   if (!response) {
     throw new Error('No response from the background script. Please try again.');
@@ -93,6 +126,7 @@ async function downloadMarkdown(markdown, filename, statusMessage) {
   if (!response.ok) {
     throw new Error(response.error || 'Download failed.');
   }
+  return response;
 }
 
 // --- Action 1: Export all tabs to a local .md file -------------------------
@@ -104,8 +138,10 @@ const exportAllToMarkdown = guarded(async () => {
     return;
   }
   const message = successMessage(snapshot.counts);
-  await downloadMarkdown(formatMarkdown(snapshot), makeFilename('tabs-export'), message);
+  const filename = makeFilename('tabs-export');
+  const response = await downloadMarkdown(formatMarkdown(snapshot), filename, message, 'local');
   setStatus(message, 'success');
+  showLocalFileLink({ id: response.downloadId, filename });
 });
 
 // --- Action 2: Export all tabs to Google Drive -----------------------------
@@ -124,6 +160,7 @@ const exportAllToDrive = guarded(async () => {
     markdown: formatMarkdown(snapshot),
     filename: makeFilename('tabs-export'),
     statusMessage: message,
+    method: 'drive',
   });
 
   if (!response) {
@@ -156,12 +193,15 @@ const exportIncognitoOnly = guarded(async () => {
     return;
   }
   const message = successMessage(snapshot.counts);
-  await downloadMarkdown(
+  const filename = makeFilename('incognito-tabs-export');
+  const response = await downloadMarkdown(
     formatMarkdown(snapshot, { heading: 'Incognito tab export' }),
-    makeFilename('incognito-tabs-export'),
+    filename,
     message,
+    'incognito',
   );
   setStatus(message, 'success');
+  showLocalFileLink({ id: response.downloadId, filename });
 });
 
 // --- Action 4: Close all tabs (with confirmation) ---------------------------
@@ -198,12 +238,20 @@ const LAST_STATUS_KEY = 'lastExportStatus'; // must match background.js
  * persists each successful export's status, and it is replayed here on the
  * next open, prefixed with "Previously" (with the Drive file link, if any).
  */
+const METHOD_LABELS = {
+  local: 'to a local Markdown file',
+  drive: 'to Google Drive',
+  incognito: 'incognito tabs to a local Markdown file',
+};
+
 async function restoreLastExportStatus() {
   const stored = await api.storage.local.get(LAST_STATUS_KEY);
   const record = stored?.[LAST_STATUS_KEY];
   if (!record?.message) return;
-  setStatus(`Previously ${record.message}`, 'success');
+  const how = METHOD_LABELS[record.method];
+  setStatus(`Previously ${record.message}${how ? ` (${how})` : ''}`, 'success');
   if (record.file) showDriveFileLink(record.file);
+  else if (record.download) showLocalFileLink(record.download);
 }
 
 restoreLastExportStatus().catch((error) => console.error(error));

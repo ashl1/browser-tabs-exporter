@@ -279,10 +279,15 @@ function flashBadge(text, color) {
 
 const LAST_STATUS_KEY = 'lastExportStatus'; // must match popup/popup.js
 
-function saveLastExportStatus(statusMessage, file = null) {
+/**
+ * @param {string} statusMessage - the popup-composed counts sentence
+ * @param {object} extra - `method` ('local'|'drive'|'incognito') plus either
+ *   `file` ({id,name,webViewLink}, Drive) or `download` ({id,filename}, local)
+ */
+function saveLastExportStatus(statusMessage, extra = {}) {
   if (typeof statusMessage !== 'string' || !statusMessage) return Promise.resolve();
   return api.storage.local.set({
-    [LAST_STATUS_KEY]: { message: statusMessage, file, at: Date.now() },
+    [LAST_STATUS_KEY]: { message: statusMessage, at: Date.now(), ...extra },
   });
 }
 
@@ -297,7 +302,10 @@ api.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       exportToDrive(message)
         .then(async (result) => {
           flashBadge('✓', '#188038');
-          await saveLastExportStatus(message.statusMessage, result.file);
+          await saveLastExportStatus(message.statusMessage, {
+            method: message.method || 'drive',
+            file: result.file,
+          });
           sendResponse(result);
         })
         .catch((error) => {
@@ -310,7 +318,10 @@ api.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     case 'download-markdown':
       downloadMarkdownFile(message)
         .then(async (result) => {
-          await saveLastExportStatus(message.statusMessage);
+          await saveLastExportStatus(message.statusMessage, {
+            method: message.method || 'local',
+            download: { id: result.downloadId, filename: message.filename },
+          });
           sendResponse(result);
         })
         .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));

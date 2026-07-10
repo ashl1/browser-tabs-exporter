@@ -22,9 +22,17 @@ After any successful export the popup shows:
 Exports usually settle after the popup has already closed — the OS save
 dialog or Google's auth window takes focus, which closes it. So the result of
 the last successful export is persisted, and the next time the popup opens it
-replays the same status (including the Drive file link) prefixed with
-**"Previously"**, e.g. `Previously 12 tabs for 2 windows and 1 tabs groups
-are exported!`. It stays until the next export replaces it.
+replays the same status prefixed with **"Previously"**, followed by how the
+export was made (`to a local Markdown file`, `to Google Drive`, or
+`incognito tabs to a local Markdown file`), e.g.
+`Previously 12 tabs for 2 windows and 1 tabs groups are exported! (to Google
+Drive)`. It stays until the next export replaces it.
+
+Every export also shows the created file's name as a link: Drive exports open
+the file on Google Drive, and local exports reveal the saved `.md` file in the
+system file manager (extensions cannot link `file://` URLs directly, so this
+uses `downloads.show()`; if the entry was cleared from the browser's download
+history, a message says so).
 
 ### Markdown format
 
