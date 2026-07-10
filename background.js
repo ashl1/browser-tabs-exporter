@@ -147,13 +147,8 @@ async function invalidateToken({ token, source }) {
 // Google Drive upload (multipart/related)
 // ---------------------------------------------------------------------------
 
-async function driveUpload(token, filename, markdown) {
+async function driveUpload(token, metadata, markdown) {
   const boundary = `tab-snapshot-${crypto.randomUUID()}`;
-  const metadata = {
-    name: filename,
-    mimeType: 'text/markdown',
-    description: 'Exported by the Tab Snapshot browser extension',
-  };
   const body =
     `--${boundary}\r\n` +
     'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
@@ -182,19 +177,35 @@ async function readDriveError(response) {
   }
 }
 
-async function exportToDrive({ markdown, filename }) {
+async function exportToDrive({ markdown, filename, format }) {
   if (typeof markdown !== 'string' || !markdown || typeof filename !== 'string') {
     throw new Error('Invalid export payload.');
   }
 
+  // format 'document': the content part stays text/markdown, but the target
+  // mimeType asks Drive to convert it into a native Google Doc — headers,
+  // links, and lists become real Docs formatting.
+  const metadata =
+    format === 'document'
+      ? {
+          name: filename.replace(/\.md$/i, ''),
+          mimeType: 'application/vnd.google-apps.document',
+          description: 'Exported by the Tab Snapshot browser extension',
+        }
+      : {
+          name: filename,
+          mimeType: 'text/markdown',
+          description: 'Exported by the Tab Snapshot browser extension',
+        };
+
   let auth = await getAccessToken(true);
-  let response = await driveUpload(auth.token, filename, markdown);
+  let response = await driveUpload(auth.token, metadata, markdown);
 
   // A stale cached token yields 401: invalidate it and retry exactly once.
   if (response.status === 401) {
     await invalidateToken(auth);
     auth = await getAccessToken(true);
-    response = await driveUpload(auth.token, filename, markdown);
+    response = await driveUpload(auth.token, metadata, markdown);
   }
 
   if (!response.ok) {

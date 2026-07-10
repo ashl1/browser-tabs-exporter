@@ -12,9 +12,14 @@ import { collectTabSnapshot } from '../lib/collect.js';
 import { formatMarkdown, successMessage, makeFilename } from '../lib/markdown.js';
 
 const ui = {
+  mainView: document.getElementById('main-view'),
+  driveView: document.getElementById('drive-view'),
   exportMd: document.getElementById('export-md'),
   exportDrive: document.getElementById('export-drive'),
   exportIncognito: document.getElementById('export-incognito'),
+  driveBack: document.getElementById('drive-back'),
+  driveAsMd: document.getElementById('drive-as-md'),
+  driveAsDoc: document.getElementById('drive-as-doc'),
   closeAll: document.getElementById('close-all'),
   confirmPanel: document.getElementById('confirm-panel'),
   confirmText: document.getElementById('confirm-text'),
@@ -25,7 +30,20 @@ const ui = {
   statusLink: document.getElementById('status-link'),
 };
 
-const actionButtons = [ui.exportMd, ui.exportDrive, ui.exportIncognito, ui.closeAll];
+const actionButtons = [
+  ui.exportMd,
+  ui.exportDrive,
+  ui.exportIncognito,
+  ui.driveBack,
+  ui.driveAsMd,
+  ui.driveAsDoc,
+  ui.closeAll,
+];
+
+function showView(name) {
+  ui.mainView.hidden = name !== 'main';
+  ui.driveView.hidden = name !== 'drive';
+}
 
 function setStatus(message, kind = 'info') {
   ui.statusText.textContent = message;
@@ -173,33 +191,42 @@ const exportAllToMarkdown = guarded(async () => {
 });
 
 // --- Action 2: Export all tabs to Google Drive -----------------------------
+// The "Export All to Google Drive" button opens a sub-menu offering two
+// formats: a plain .md file, or a native Google Doc (Drive converts the
+// Markdown server-side, so headers/links become real Docs formatting).
 
-const exportAllToDrive = guarded(async () => {
-  const snapshot = await collectTabSnapshot();
-  if (snapshot.counts.tabs === 0) {
-    setStatus('No tabs found to export.', 'info');
-    return;
-  }
-  setStatus('Connecting to Google Drive…', 'info');
+function makeDriveExport(format) {
+  return guarded(async () => {
+    const snapshot = await collectTabSnapshot();
+    if (snapshot.counts.tabs === 0) {
+      setStatus('No tabs found to export.', 'info');
+      return;
+    }
+    setStatus('Connecting to Google Drive…', 'info');
 
-  const message = successMessage(snapshot.counts);
-  const response = await api.runtime.sendMessage({
-    type: 'drive-export',
-    markdown: formatMarkdown(snapshot),
-    filename: makeFilename('tabs-export'),
-    statusMessage: message,
-    method: 'drive',
+    const message = successMessage(snapshot.counts);
+    const response = await api.runtime.sendMessage({
+      type: 'drive-export',
+      format,
+      markdown: formatMarkdown(snapshot),
+      filename: makeFilename('tabs-export'),
+      statusMessage: message,
+      method: 'drive',
+    });
+
+    if (!response) {
+      throw new Error('No response from the background script. Please try again.');
+    }
+    if (!response.ok) {
+      throw new Error(response.error || 'Google Drive export failed.');
+    }
+    setStatus(message, 'success');
+    showDriveFileLink(response.file);
   });
+}
 
-  if (!response) {
-    throw new Error('No response from the background script. Please try again.');
-  }
-  if (!response.ok) {
-    throw new Error(response.error || 'Google Drive export failed.');
-  }
-  setStatus(message, 'success');
-  showDriveFileLink(response.file);
-});
+const exportDriveAsMarkdown = makeDriveExport('markdown');
+const exportDriveAsDocument = makeDriveExport('document');
 
 // --- Action 3: Export incognito tabs only -----------------------------------
 
@@ -287,7 +314,14 @@ restoreLastExportStatus().catch((error) => console.error(error));
 // --- Wiring ------------------------------------------------------------------
 
 ui.exportMd.addEventListener('click', exportAllToMarkdown);
-ui.exportDrive.addEventListener('click', exportAllToDrive);
+ui.exportDrive.addEventListener('click', () => {
+  hideConfirm();
+  clearStatus();
+  showView('drive');
+});
+ui.driveBack.addEventListener('click', () => showView('main'));
+ui.driveAsMd.addEventListener('click', exportDriveAsMarkdown);
+ui.driveAsDoc.addEventListener('click', exportDriveAsDocument);
 ui.exportIncognito.addEventListener('click', exportIncognitoOnly);
 ui.closeAll.addEventListener('click', () => {
   showCloseConfirmation().catch((error) => setStatus(error.message, 'error'));
