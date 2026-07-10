@@ -260,3 +260,7 @@ and resets the target to My Drive.
 - `host_permissions` for `googleapis.com` are auto-granted on Chromium; on
   Firefox MV3 host permissions are user-optional, but the Drive endpoints send
   CORS headers, so the upload works either way.
+
+## License
+
+GPLv3 — see [COPYING](COPYING).
