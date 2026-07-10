@@ -183,3 +183,16 @@ hr {
   background: var(--info-bg);
   color: var(--info-fg);
 }
+
+.status a {
+  display: block;
+  margin-top: 5px;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+.status a::before {
+  content: "\1F4C4  ";
+}

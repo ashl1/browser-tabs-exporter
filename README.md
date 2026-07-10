@@ -10,6 +10,7 @@ suspended/discarded tabs (they are read without being woken up).
 1. **Export All to Markdown** — downloads all tabs from all windows as a `.md` file.
 2. **Export All to Google Drive** — uploads the same document to Drive
    (OAuth2, `drive.file` scope — the extension can only see files it created).
+   On success the popup shows a clickable link to the created Drive file.
 3. **Export Incognito Only** — downloads only currently open incognito/private tabs.
 4. **Close All Tabs** — closes every tab in every window, behind an in-popup
    confirmation step.

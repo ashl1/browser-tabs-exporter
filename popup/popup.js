@@ -21,19 +21,35 @@ const ui = {
   confirmClose: document.getElementById('confirm-close'),
   cancelClose: document.getElementById('cancel-close'),
   status: document.getElementById('status'),
+  statusText: document.getElementById('status-text'),
+  statusLink: document.getElementById('status-link'),
 };
 
 const actionButtons = [ui.exportMd, ui.exportDrive, ui.exportIncognito, ui.closeAll];
 
 function setStatus(message, kind = 'info') {
-  ui.status.textContent = message;
+  ui.statusText.textContent = message;
+  ui.statusLink.hidden = true;
+  ui.statusLink.removeAttribute('href');
+  ui.statusLink.textContent = '';
   ui.status.className = `status ${kind}`;
   ui.status.hidden = false;
 }
 
 function clearStatus() {
   ui.status.hidden = true;
-  ui.status.textContent = '';
+  ui.statusText.textContent = '';
+  ui.statusLink.hidden = true;
+}
+
+/** Show a clickable link to the created Drive file below the status text. */
+function showDriveFileLink(file) {
+  if (!file?.webViewLink && !file?.id) return;
+  ui.statusLink.href =
+    file.webViewLink || `https://drive.google.com/file/d/${encodeURIComponent(file.id)}/view`;
+  ui.statusLink.textContent = file.name || 'Open in Google Drive';
+  ui.statusLink.title = 'Open in Google Drive';
+  ui.statusLink.hidden = false;
 }
 
 function setBusy(busy) {
@@ -113,6 +129,7 @@ const exportAllToDrive = guarded(async () => {
     throw new Error(response.error || 'Google Drive export failed.');
   }
   setStatus(successMessage(snapshot.counts), 'success');
+  showDriveFileLink(response.file);
 });
 
 // --- Action 3: Export incognito tabs only -----------------------------------
