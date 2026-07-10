@@ -206,6 +206,47 @@ async function exportToDrive({ markdown, filename }) {
 }
 
 // ---------------------------------------------------------------------------
+// Local .md download.
+//
+// Firefox's downloads.download() denies data: URLs, so on Firefox (an event
+// page with document APIs) a Blob URL is created here — it outlives the
+// popup and is revoked once the download settles. Chromium service workers
+// have no URL.createObjectURL, but Chrome accepts data: URLs.
+// ---------------------------------------------------------------------------
+
+const pendingBlobUrls = new Map(); // downloadId → blob URL awaiting revocation
+
+api.downloads.onChanged.addListener((delta) => {
+  const blobUrl = pendingBlobUrls.get(delta.id);
+  if (!blobUrl) return;
+  const state = delta.state?.current;
+  if (state === 'complete' || state === 'interrupted') {
+    URL.revokeObjectURL(blobUrl);
+    pendingBlobUrls.delete(delta.id);
+  }
+});
+
+async function downloadMarkdownFile({ markdown, filename }) {
+  if (typeof markdown !== 'string' || !markdown || typeof filename !== 'string') {
+    throw new Error('Invalid download payload.');
+  }
+
+  const canUseBlob = typeof URL.createObjectURL === 'function';
+  const url = canUseBlob
+    ? URL.createObjectURL(new Blob([markdown], { type: 'text/markdown;charset=utf-8' }))
+    : `data:text/markdown;charset=utf-8,${encodeURIComponent(markdown)}`;
+
+  try {
+    const downloadId = await api.downloads.download({ url, filename, saveAs: true });
+    if (canUseBlob) pendingBlobUrls.set(downloadId, url);
+    return { ok: true, downloadId };
+  } catch (error) {
+    if (canUseBlob) URL.revokeObjectURL(url);
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Close all tabs
 // ---------------------------------------------------------------------------
 
@@ -246,6 +287,12 @@ api.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           flashBadge('!', '#b3261e');
           sendResponse({ ok: false, error: error?.message || String(error) });
         });
+      return true;
+
+    case 'download-markdown':
+      downloadMarkdownFile(message)
+        .then(sendResponse)
+        .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
       return true;
 
     case 'close-all-tabs':

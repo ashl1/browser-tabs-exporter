@@ -154,13 +154,16 @@ retried once automatically.
 - **Tab groups** come from the `tabGroups` permission/API (Chrome 89+,
   Firefox 139+). On browsers without the API, all tabs are treated as
   ungrouped and `K` is `0`.
-- **Local downloads** use a `data:` URL with the `downloads` API rather than a
-  Blob URL: Blob URLs die with the popup document, and the OS save dialog can
-  close the popup.
-- **Close All Tabs** and the **Drive upload** are executed in the background
-  context, because both can outlive the popup (the popup dies when its window
-  closes or the auth window takes focus). Drive results are also flashed on
-  the toolbar badge (✓ / !) in case the popup closed mid-flow.
+- **Local downloads** run in the background context because no single URL
+  scheme works everywhere: Firefox's `downloads.download()` denies `data:`
+  URLs, so its event page creates a Blob URL (revoked when the download
+  settles); Chromium service workers lack `URL.createObjectURL`, so a `data:`
+  URL is used there (which Chrome accepts). A Blob URL minted in the popup
+  would not survive the popup closing — e.g. when the save dialog takes focus.
+- **Close All Tabs** and the **Drive upload** are also executed in the
+  background context, because both can outlive the popup (the popup dies when
+  its window closes or the auth window takes focus). Drive results are also
+  flashed on the toolbar badge (✓ / !) in case the popup closed mid-flow.
 - `host_permissions` for `googleapis.com` are auto-granted on Chromium; on
   Firefox MV3 host permissions are user-optional, but the Drive endpoints send
   CORS headers, so the upload works either way.

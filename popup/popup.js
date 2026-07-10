@@ -58,13 +58,24 @@ function guarded(handler) {
 }
 
 /**
- * Trigger a local download. A `data:` URL is used instead of a Blob URL on
- * purpose: Blob URLs are revoked when the popup document closes, and the
- * OS save dialog stealing focus closes the popup in some browsers.
+ * Local downloads are delegated to the background context: Firefox denies
+ * `data:` URLs in downloads.download(), and a Blob URL minted here in the
+ * popup would be revoked the moment the popup closes (the OS save dialog
+ * stealing focus is enough). The background script picks the right URL
+ * strategy per browser and outlives the popup.
  */
 async function downloadMarkdown(markdown, filename) {
-  const url = `data:text/markdown;charset=utf-8,${encodeURIComponent(markdown)}`;
-  await api.downloads.download({ url, filename, saveAs: true });
+  const response = await api.runtime.sendMessage({
+    type: 'download-markdown',
+    markdown,
+    filename,
+  });
+  if (!response) {
+    throw new Error('No response from the background script. Please try again.');
+  }
+  if (!response.ok) {
+    throw new Error(response.error || 'Download failed.');
+  }
 }
 
 // --- Action 1: Export all tabs to a local .md file -------------------------
