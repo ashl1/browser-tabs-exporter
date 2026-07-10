@@ -132,11 +132,24 @@ ship `chrome.identity` but cannot mint Google tokens — fall back to
    URL for each browser you target. Find it by running
    `browser.identity.getRedirectURL()` (Firefox) or
    `chrome.identity.getRedirectURL()` (Chromium) in the extension's background
-   console. It looks like:
+   console (`about:debugging` → Inspect on Firefox). It looks like:
    - Firefox: `https://<hash-of-addon-id>.extensions.allizom.org/`
-     (stable because `gecko.id` is pinned in `manifest.firefox.json`)
-   - Chromium: `https://<extension-id>.chromiumapp.org/`
+     (stable because `gecko.id` is pinned in `manifest.firefox.json`; for the
+     current id `tab-snapshot@example.com` it is
+     `https://d20b6781314671defd3978d3e33e9f6eef707e7e.extensions.allizom.org/`)
+   - Chromium: `https://<extension-id>.chromiumapp.org/` — only needed for
+     browsers that fall back to the web flow (Edge, Brave); Chrome itself
+     uses the native `getAuthToken` path, which involves no redirect URI.
 3. Copy the client ID into `background.js` → `WEB_OAUTH_CLIENT_ID`.
+
+> **Error 400: redirect_uri_mismatch** during Firefox sign-in means the URI
+> from step 2 is missing from (or does not exactly match) the Web client's
+> **Authorized redirect URIs**. The match is character-exact: include the
+> trailing slash, no path, no port. After saving, Google says changes can
+> take 5 minutes to a few hours to propagate — usually a few minutes.
+> Note that changing `gecko.id` in `manifest.firefox.json` (e.g. for AMO
+> submission) changes the hash in the redirect URL, so the new URI must be
+> added to the Google Cloud client again.
 
 ### 5. Smoke test
 
