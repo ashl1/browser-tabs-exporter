@@ -1,7 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Tab Snapshot — Markdown Export",
-  "short_name": "Tab Snapshot",
+  "name": "Tabs Exporter",
   "version": "1.2.0",
   "description": "Export every open tab (windows, tab groups, private) to structured Markdown — locally or straight to Google Drive.",
   "incognito": "spanning",
@@ -26,7 +25,7 @@
   ],
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "Tab Snapshot — export tabs to Markdown",
+    "default_title": "Tabs Exporter — export tabs to Markdown",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -42,7 +41,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "tab-snapshot@example.com",
+      "id": "tabs-exporter@example.com",
       "strict_min_version": "139.0",
       "data_collection_permissions": {
         "required": ["none"]

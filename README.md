@@ -1,4 +1,4 @@
-# Tab Snapshot — Markdown Export
+# Tabs Exporter
 
 Cross-browser (Chrome / Edge / Brave / Firefox) Manifest V3 extension that exports
 every open tab to structured Markdown — as a local `.md` download or straight to
@@ -107,11 +107,11 @@ save_tabs_extension/
 Browsers never grant extensions incognito access by default — the user must
 opt in manually:
 
-- **Chrome / Brave**: `chrome://extensions` → Tab Snapshot → **Details** →
+- **Chrome / Brave**: `chrome://extensions` → Tabs Exporter → **Details** →
   enable **Allow in Incognito**.
-- **Edge**: `edge://extensions` → Tab Snapshot → **Details** →
+- **Edge**: `edge://extensions` → Tabs Exporter → **Details** →
   enable **Allow in InPrivate**.
-- **Firefox**: `about:addons` → Tab Snapshot → **Details** tab →
+- **Firefox**: `about:addons` → Tabs Exporter → **Details** tab →
   **Run in Private Windows** → **Allow**. (When loading a temporary add-on,
   Firefox also shows this as a checkbox in the install prompt.)
 
@@ -134,7 +134,7 @@ ship `chrome.identity` but cannot mint Google tokens — fall back to
 ### 1. Project and API
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/) → create a
-   project (e.g. *Tab Snapshot*).
+   project (e.g. *Tabs Exporter*).
 2. **APIs & Services → Library** → search **Google Drive API** → **Enable**.
 
 ### 2. OAuth consent screen

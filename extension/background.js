@@ -206,12 +206,12 @@ async function exportToDrive({ markdown, filename, format }) {
       ? {
           name: filename.replace(/\.md$/i, ''),
           mimeType: 'application/vnd.google-apps.document',
-          description: 'Exported by the Tab Snapshot browser extension',
+          description: 'Exported by the Tabs Exporter browser extension',
         }
       : {
           name: filename,
           mimeType: 'text/markdown',
-          description: 'Exported by the Tab Snapshot browser extension',
+          description: 'Exported by the Tabs Exporter browser extension',
         };
 
   const folder = await getDriveFolder();

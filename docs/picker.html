@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>Tab Snapshot — choose a Google Drive folder</title>
+  <title>Tabs Exporter — choose a Google Drive folder</title>
   <style>
     body {
       margin: 0;
@@ -26,7 +26,7 @@
 </head>
 <body>
   <main>
-    <h1>Tab Snapshot</h1>
+    <h1>Tabs Exporter</h1>
     <p id="message">Loading the Google Drive folder picker…</p>
   </main>
 
@@ -39,7 +39,7 @@
     //    page's origin, with the "Google Picker API" enabled.
     //  - PROJECT_NUMBER: the numeric project number (IAM & Admin → Settings).
     //    Passed to setAppId() — required for the drive.file scope grant to
-    //    apply to the Tab Snapshot extension's OAuth tokens.
+    //    apply to the Tabs Exporter extension's OAuth tokens.
     // ------------------------------------------------------------------
     const API_KEY = 'REPLACE_WITH_BROWSER_API_KEY';
     const PROJECT_NUMBER = 'REPLACE_WITH_PROJECT_NUMBER';
@@ -100,7 +100,7 @@
     function init() {
       if (!accessToken || !state) {
         show(
-          'This page is meant to be opened by the Tab Snapshot browser extension '
+          'This page is meant to be opened by the Tabs Exporter browser extension '
             + '(use its "Change…" folder button).',
           true,
         );

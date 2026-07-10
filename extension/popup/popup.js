@@ -289,8 +289,8 @@ const exportIncognitoOnly = guarded(async () => {
   if (!allowed) {
     setStatus(
       IS_FIREFOX
-        ? 'Private browsing access is disabled. Open about:addons → Tab Snapshot → "Run in Private Windows" → Allow.'
-        : 'Incognito access is disabled. Open your browser\'s Extensions page → Tab Snapshot → Details → enable "Allow in Incognito".',
+        ? 'Private browsing access is disabled. Open about:addons → Tabs Exporter → "Run in Private Windows" → Allow.'
+        : 'Incognito access is disabled. Open your browser\'s Extensions page → Tabs Exporter → Details → enable "Allow in Incognito".',
       'error',
     );
     return;
