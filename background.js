@@ -20,7 +20,7 @@ const IS_FIREFOX = api.runtime.getURL('').startsWith('moz-extension://');
 
 // "Web application" OAuth client used by the launchWebAuthFlow fallback.
 // See README.md → "Google Cloud setup".
-const WEB_OAUTH_CLIENT_ID = 'REPLACE_WITH_WEB_APPLICATION_CLIENT_ID.apps.googleusercontent.com';
+const WEB_OAUTH_CLIENT_ID = '567268955685-rfpuerdtrrag804fod8hahggpv10b2t4.apps.googleusercontent.com';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const DRIVE_UPLOAD_URL =

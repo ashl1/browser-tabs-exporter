@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Tab Snapshot — Markdown Export",
   "short_name": "Tab Snapshot",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Export every open tab (windows, tab groups, incognito) to structured Markdown — locally or straight to Google Drive.",
   "minimum_chrome_version": "116",
   "incognito": "spanning",
@@ -36,7 +36,7 @@
     "128": "icons/icon128.png"
   },
   "oauth2": {
-    "client_id": "REPLACE_WITH_CHROME_EXTENSION_CLIENT_ID.apps.googleusercontent.com",
+    "client_id": "567268955685-4a7en406sajuoa6fmvacr5igdu34lmc3.apps.googleusercontent.com",
     "scopes": [
       "https://www.googleapis.com/auth/drive.file"
     ]
