@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Tab Snapshot — choose a Google Drive folder</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #f6f7f9;
+      color: #1b1f27;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { background: #1e2027; color: #e7e9ee; }
+    }
+    main { max-width: 26rem; padding: 2rem; text-align: center; }
+    .error { color: #b3261e; }
+    @media (prefers-color-scheme: dark) { .error { color: #f2b8b5; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Tab Snapshot</h1>
+    <p id="message">Loading the Google Drive folder picker…</p>
+  </main>
+
+  <script>
+    'use strict';
+
+    // ------------------------------------------------------------------
+    // Fill these in from your Google Cloud project (see README.md):
+    //  - API_KEY: a browser API key, restricted by HTTP referrer to this
+    //    page's origin, with the "Google Picker API" enabled.
+    //  - PROJECT_NUMBER: the numeric project number (IAM & Admin → Settings).
+    //    Passed to setAppId() — required for the drive.file scope grant to
+    //    apply to the Tab Snapshot extension's OAuth tokens.
+    // ------------------------------------------------------------------
+    const API_KEY = 'REPLACE_WITH_BROWSER_API_KEY';
+    const PROJECT_NUMBER = 'REPLACE_WITH_PROJECT_NUMBER';
+
+    const messageEl = document.getElementById('message');
+
+    function show(text, isError = false) {
+      messageEl.textContent = text;
+      messageEl.className = isError ? 'error' : '';
+    }
+
+    // The extension opens this page as
+    //   picker.html#access_token=…&state=…
+    // The fragment never leaves the browser (not sent to the server).
+    const params = new URLSearchParams(location.hash.replace(/^#/, ''));
+    const accessToken = params.get('access_token');
+    const state = params.get('state');
+
+    // Result goes to the extension via its content-script relay.
+    function postResult(folder) {
+      window.postMessage(
+        { type: 'tab-snapshot-picker-result', state, folder },
+        location.origin,
+      );
+    }
+
+    function onPicked(data) {
+      const action = data[google.picker.Response.ACTION];
+      if (action === google.picker.Action.PICKED) {
+        const doc = data[google.picker.Response.DOCUMENTS][0];
+        postResult({ id: doc[google.picker.Document.ID], name: doc[google.picker.Document.NAME] });
+        show(`Folder “${doc[google.picker.Document.NAME]}” selected. This tab will close.`);
+      } else if (action === google.picker.Action.CANCEL) {
+        postResult(null);
+        show('Cancelled. This tab will close — you can also close it yourself.');
+      }
+    }
+
+    function createPicker() {
+      const view = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true)
+        .setMimeTypes('application/vnd.google-apps.folder');
+
+      new google.picker.PickerBuilder()
+        .setOAuthToken(accessToken)
+        .setDeveloperKey(API_KEY)
+        .setAppId(PROJECT_NUMBER)
+        .setTitle('Choose a folder for tab exports')
+        .addView(view)
+        .setCallback(onPicked)
+        .build()
+        .setVisible(true);
+
+      show('Choose the Google Drive folder to export tabs into.');
+    }
+
+    function init() {
+      if (!accessToken || !state) {
+        show(
+          'This page is meant to be opened by the Tab Snapshot browser extension '
+            + '(use its "Change…" folder button).',
+          true,
+        );
+        return;
+      }
+      if (API_KEY.startsWith('REPLACE_WITH')) {
+        show('This picker page is not configured yet: set API_KEY and PROJECT_NUMBER in picker.html.', true);
+        return;
+      }
+      gapi.load('picker', {
+        callback: createPicker,
+        onerror: () => show('Failed to load the Google Picker library.', true),
+      });
+    }
+
+    const gapiScript = document.createElement('script');
+    gapiScript.src = 'https://apis.google.com/js/api.js';
+    gapiScript.onload = init;
+    gapiScript.onerror = () => show('Failed to load Google APIs — check your network.', true);
+    document.head.append(gapiScript);
+  </script>
+</body>
+</html>

@@ -18,6 +18,11 @@ suspended/discarded tabs (they are read without being woken up).
 
    Uses OAuth2 with the `drive.file` scope — the extension can only see files
    it created. On success the popup shows a clickable link to the created file.
+
+   The sub-menu also shows the **target folder** (default: *My Drive*),
+   remembered until changed. **Change…** opens the real Google Picker on a
+   small page you host (see "Choosing a Drive folder" below); **New folder**
+   creates a folder inside the current target and selects it.
 3. **Export Incognito Only** — downloads only currently open incognito/private tabs.
 4. **Close All Tabs** — closes every tab in every window, behind an in-popup
    confirmation step.
@@ -57,21 +62,26 @@ instead, or shows the file's full path.
 
 ```
 save_tabs_extension/
-├── manifest.json            # Chromium manifest (Chrome / Edge / Brave)
-├── manifest.firefox.json    # Firefox manifest (swap in when packaging for Firefox)
-├── background.js            # Service worker / event page: OAuth2 + Drive upload,
-│                            # close-all-tabs (classic script — no ES imports, so the
-│                            # same file runs on both browsers)
-├── popup/
-│   ├── popup.html           # UI
-│   ├── popup.css            # Styling (light/dark aware)
-│   └── popup.js             # UI controller (ES module)
-├── lib/
-│   ├── env.js               # browser.*/chrome.* namespace shim
-│   ├── collect.js           # Tab/window/group collection (never wakes tabs)
-│   └── markdown.js          # Markdown formatting, counts message, filenames
-├── icons/                   # 16/32/48/128 px PNGs
-└── README.md
+├── README.md
+├── docs/
+│   └── picker.html              # Hosted Google Picker page (serve via GitHub Pages)
+└── extension/                   # ← load THIS folder as the unpacked extension
+    ├── manifest.json            # Chromium manifest (Chrome / Edge / Brave)
+    ├── manifest.firefox.json    # Firefox manifest (swap in when packaging for Firefox)
+    ├── background.js            # Service worker / event page: OAuth2 + Drive upload,
+    │                            # folder picking/creation, close-all-tabs (classic
+    │                            # script — no ES imports, runs on both browsers)
+    ├── content/
+    │   └── picker-relay.js      # Relays the picked folder from the hosted page
+    ├── popup/
+    │   ├── popup.html           # UI
+    │   ├── popup.css            # Styling (light/dark aware)
+    │   └── popup.js             # UI controller (ES module)
+    ├── lib/
+    │   ├── env.js               # browser.*/chrome.* namespace shim
+    │   ├── collect.js           # Tab/window/group collection (never wakes tabs)
+    │   └── markdown.js          # Markdown formatting, counts message, filenames
+    └── icons/                   # 16/32/48/128 px PNGs
 ```
 
 ## Installation (development)
@@ -80,14 +90,15 @@ save_tabs_extension/
 
 1. Open `chrome://extensions` (`edge://extensions`, `brave://extensions`).
 2. Enable **Developer mode**.
-3. **Load unpacked** → select this folder.
+3. **Load unpacked** → select the `extension/` folder.
 
 ### Firefox (139 or newer — required for the tab groups API)
 
-1. Swap the manifest: `cp manifest.json manifest.chrome.json && cp manifest.firefox.json manifest.json`
+1. Swap the manifest inside `extension/`:
+   `cd extension && cp manifest.json manifest.chrome.json && cp manifest.firefox.json manifest.json`
    (or use `web-ext` with a build step). Restore afterwards.
 2. Open `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** →
-   pick `manifest.json` in this folder.
+   pick `extension/manifest.json`.
 3. For a permanent install, sign the ZIP on addons.mozilla.org (the
    `browser_specific_settings.gecko.id` in the manifest must stay stable).
 
@@ -185,6 +196,47 @@ approve → the popup shows the success message and the file appears in *My
 Drive* as `tabs-export-<timestamp>.md`. Uploads use the Drive v3
 `multipart/related` endpoint; expired tokens (HTTP 401) are invalidated and
 retried once automatically.
+
+## Choosing a Drive folder (hosted Google Picker)
+
+The Google Picker cannot run inside an MV3 extension page — extension CSP and
+store policies forbid loading Google's remote `api.js`. So the Picker lives on
+a tiny static page, `docs/picker.html`, that **you host** (GitHub Pages is the
+easy path since it can serve this repo's `docs/` folder). This keeps the
+narrow `drive.file` scope: **picking a folder in the Picker is exactly what
+grants the extension write access to it.**
+
+How the flow works: the popup's **Change…** button asks the background for an
+access token, which opens `picker.html#access_token=…&state=…` in a new tab
+(the fragment never leaves the browser). The page shows a folders-only Picker;
+the result is posted as a window message, picked up by the extension's content
+script (`extension/content/picker-relay.js`), validated against the `state`
+nonce in the background, persisted, and the tab closes itself. The chosen
+folder is shown in the Drive sub-menu and used for all exports until changed.
+If the folder is later deleted in Drive, the next export shows a clear error
+and resets the target to My Drive.
+
+### One-time setup
+
+1. **Host the page**: push this repo to GitHub → repo **Settings → Pages** →
+   Source: *Deploy from a branch*, Branch: `main`, folder `/docs`. The page
+   URL becomes `https://<your-username>.github.io/save_tabs_extension/picker.html`.
+2. **Enable the Picker API**: in the same Google Cloud project as the OAuth
+   clients (this is required — the `drive.file` grant is per-project), open
+   **APIs & Services → Library** → **Google Picker API** → **Enable**.
+3. **Create a browser API key**: **Credentials → Create credentials → API
+   key**. Restrict it: *Application restrictions* → **Websites** → add your
+   Pages origin (`https://<your-username>.github.io`); *API restrictions* →
+   **Google Picker API** only.
+4. **Find the project number**: **IAM & Admin → Settings** → *Project number*
+   (numeric, not the project ID). The Picker's `setAppId()` needs it so the
+   folder grant applies to this app.
+5. **Fill the placeholders**:
+   - `docs/picker.html` → `API_KEY`, `PROJECT_NUMBER`;
+   - `extension/background.js` → `PICKER_PAGE_URL`;
+   - both manifests → `content_scripts[0].matches` (replace
+     `your-github-username`).
+6. Commit, push (so Pages redeploys), and reload the extension.
 
 ## Implementation notes
 

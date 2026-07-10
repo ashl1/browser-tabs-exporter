@@ -105,6 +105,70 @@ hr {
   color: var(--muted);
 }
 
+.folder-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.folder-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-label strong {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.folder-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.btn-mini {
+  width: auto;
+  gap: 6px;
+  padding: 4px 9px;
+  font-size: 12px;
+  justify-content: center;
+  text-align: center;
+}
+
+.new-folder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--btn-bg);
+}
+
+.new-folder input {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+}
+
+.new-folder input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
 .btn {
   display: flex;
   align-items: center;

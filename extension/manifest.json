@@ -2,8 +2,9 @@
   "manifest_version": 3,
   "name": "Tab Snapshot — Markdown Export",
   "short_name": "Tab Snapshot",
-  "version": "1.1.0",
-  "description": "Export every open tab (windows, tab groups, private) to structured Markdown — locally or straight to Google Drive.",
+  "version": "1.2.0",
+  "description": "Export every open tab (windows, tab groups, incognito) to structured Markdown — locally or straight to Google Drive.",
+  "minimum_chrome_version": "116",
   "incognito": "spanning",
   "permissions": [
     "tabs",
@@ -16,8 +17,14 @@
     "https://www.googleapis.com/*"
   ],
   "background": {
-    "scripts": ["background.js"]
+    "service_worker": "background.js"
   },
+  "content_scripts": [
+    {
+      "matches": ["https://your-github-username.github.io/save_tabs_extension/*"],
+      "js": ["content/picker-relay.js"]
+    }
+  ],
   "action": {
     "default_popup": "popup/popup.html",
     "default_title": "Tab Snapshot — export tabs to Markdown",
@@ -34,13 +41,10 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "tab-snapshot@example.com",
-      "strict_min_version": "139.0",
-      "data_collection_permissions": {
-        "required": ["none"]
-      }
-    }
+  "oauth2": {
+    "client_id": "567268955685-4a7en406sajuoa6fmvacr5igdu34lmc3.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/drive.file"
+    ]
   }
 }

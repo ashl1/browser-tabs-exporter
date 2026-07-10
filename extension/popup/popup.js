@@ -20,6 +20,13 @@ const ui = {
   driveBack: document.getElementById('drive-back'),
   driveAsMd: document.getElementById('drive-as-md'),
   driveAsDoc: document.getElementById('drive-as-doc'),
+  folderName: document.getElementById('folder-name'),
+  folderChange: document.getElementById('folder-change'),
+  folderNew: document.getElementById('folder-new'),
+  newFolderPanel: document.getElementById('new-folder-panel'),
+  newFolderName: document.getElementById('new-folder-name'),
+  newFolderCreate: document.getElementById('new-folder-create'),
+  newFolderCancel: document.getElementById('new-folder-cancel'),
   closeAll: document.getElementById('close-all'),
   confirmPanel: document.getElementById('confirm-panel'),
   confirmText: document.getElementById('confirm-text'),
@@ -37,6 +44,10 @@ const actionButtons = [
   ui.driveBack,
   ui.driveAsMd,
   ui.driveAsDoc,
+  ui.folderChange,
+  ui.folderNew,
+  ui.newFolderCreate,
+  ui.newFolderCancel,
   ui.closeAll,
 ];
 
@@ -228,6 +239,49 @@ function makeDriveExport(format) {
 const exportDriveAsMarkdown = makeDriveExport('markdown');
 const exportDriveAsDocument = makeDriveExport('document');
 
+// --- Drive target folder ------------------------------------------------------
+// Remembered until changed; picking happens on the hosted Google Picker page
+// (the Picker cannot run inside an extension page), which grants drive.file
+// access to the picked folder. "New folder" creates inside the current target.
+
+const FOLDER_KEY = 'driveFolder'; // must match background.js
+
+async function loadDriveFolder() {
+  const stored = await api.storage.local.get(FOLDER_KEY);
+  ui.folderName.textContent = stored?.[FOLDER_KEY]?.name || 'My Drive';
+}
+
+function hideNewFolderPanel() {
+  ui.newFolderPanel.hidden = true;
+  ui.newFolderName.value = '';
+}
+
+const changeDriveFolder = guarded(async () => {
+  const response = await api.runtime.sendMessage({ type: 'drive-pick-folder' });
+  if (!response?.ok) {
+    throw new Error(response?.error || 'Could not open the folder picker.');
+  }
+  // The picker tab takes focus and closes this popup; the choice is persisted
+  // by the background and shown the next time the popup opens.
+  setStatus('Pick a folder in the tab that just opened…', 'info');
+});
+
+const createNewFolder = guarded(async () => {
+  const name = ui.newFolderName.value.trim();
+  if (!name) {
+    setStatus('Type a name for the new folder first.', 'info');
+    ui.newFolderName.focus();
+    return;
+  }
+  const response = await api.runtime.sendMessage({ type: 'drive-create-folder', name });
+  if (!response?.ok) {
+    throw new Error(response?.error || 'Could not create the folder.');
+  }
+  hideNewFolderPanel();
+  ui.folderName.textContent = response.folder.name;
+  setStatus(`Folder “${response.folder.name}” created and selected.`, 'success');
+});
+
 // --- Action 3: Export incognito tabs only -----------------------------------
 
 const exportIncognitoOnly = guarded(async () => {
@@ -310,6 +364,7 @@ async function restoreLastExportStatus() {
 }
 
 restoreLastExportStatus().catch((error) => console.error(error));
+loadDriveFolder().catch((error) => console.error(error));
 
 // --- Wiring ------------------------------------------------------------------
 
@@ -319,9 +374,23 @@ ui.exportDrive.addEventListener('click', () => {
   clearStatus();
   showView('drive');
 });
-ui.driveBack.addEventListener('click', () => showView('main'));
+ui.driveBack.addEventListener('click', () => {
+  hideNewFolderPanel();
+  showView('main');
+});
 ui.driveAsMd.addEventListener('click', exportDriveAsMarkdown);
 ui.driveAsDoc.addEventListener('click', exportDriveAsDocument);
+ui.folderChange.addEventListener('click', changeDriveFolder);
+ui.folderNew.addEventListener('click', () => {
+  ui.newFolderPanel.hidden = false;
+  ui.newFolderName.focus();
+});
+ui.newFolderCreate.addEventListener('click', createNewFolder);
+ui.newFolderCancel.addEventListener('click', hideNewFolderPanel);
+ui.newFolderName.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') createNewFolder();
+  else if (event.key === 'Escape') hideNewFolderPanel();
+});
 ui.exportIncognito.addEventListener('click', exportIncognitoOnly);
 ui.closeAll.addEventListener('click', () => {
   showCloseConfirmation().catch((error) => setStatus(error.message, 'error'));

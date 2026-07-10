@@ -27,10 +27,26 @@ const DRIVE_UPLOAD_URL =
   'https://www.googleapis.com/upload/drive/v3/files' +
   '?uploadType=multipart&fields=id,name,webViewLink';
 
+// Hosted Google Picker page (docs/picker.html on GitHub Pages) used to pick
+// the target Drive folder. See README.md → "Choosing a Drive folder".
+const PICKER_PAGE_URL =
+  'https://your-github-username.github.io/save_tabs_extension/picker.html';
+
 // storage.session is wiped when the browser closes — the right lifetime for
 // an access token. Fall back to storage.local on older browsers.
 const tokenStore = api.storage.session ?? api.storage.local;
 const TOKEN_KEY = 'driveWebFlowToken';
+const PICKER_STATE_KEY = 'pendingPickerState';
+
+// Target folder for Drive exports, remembered until changed.
+const FOLDER_KEY = 'driveFolder'; // must match popup/popup.js
+const DEFAULT_FOLDER = { id: 'root', name: 'My Drive' };
+
+async function getDriveFolder() {
+  const stored = await api.storage.local.get(FOLDER_KEY);
+  const folder = stored?.[FOLDER_KEY];
+  return folder?.id && folder?.name ? folder : DEFAULT_FOLDER;
+}
 
 // ---------------------------------------------------------------------------
 // OAuth
@@ -198,6 +214,9 @@ async function exportToDrive({ markdown, filename, format }) {
           description: 'Exported by the Tab Snapshot browser extension',
         };
 
+  const folder = await getDriveFolder();
+  metadata.parents = [folder.id];
+
   let auth = await getAccessToken(true);
   let response = await driveUpload(auth.token, metadata, markdown);
 
@@ -208,12 +227,115 @@ async function exportToDrive({ markdown, filename, format }) {
     response = await driveUpload(auth.token, metadata, markdown);
   }
 
+  // 404 here means the target folder is gone (deleted in Drive, or the
+  // drive.file grant was lost). Reset to My Drive so the next try works.
+  if (response.status === 404 && folder.id !== DEFAULT_FOLDER.id) {
+    await api.storage.local.set({ [FOLDER_KEY]: DEFAULT_FOLDER });
+    throw new Error(
+      `The folder “${folder.name}” is missing or no longer accessible on Google Drive. ` +
+        'The target was reset to My Drive — pick a folder again if needed and retry.',
+    );
+  }
+
   if (!response.ok) {
     throw new Error(await readDriveError(response));
   }
 
   const file = await response.json();
   return { ok: true, file: { id: file.id, name: file.name, webViewLink: file.webViewLink } };
+}
+
+// ---------------------------------------------------------------------------
+// Drive folder selection (hosted Google Picker page + "New folder").
+//
+// The Picker cannot run inside an extension page (remote-code policy), so it
+// lives on a static page we host (docs/picker.html). The background opens it
+// in a tab with an access token + state nonce in the URL fragment; the page's
+// content script (content/picker-relay.js) relays the picked folder back.
+// Picking a folder in the Picker is what grants the drive.file-scoped app
+// write access to it.
+// ---------------------------------------------------------------------------
+
+async function launchFolderPicker() {
+  if (PICKER_PAGE_URL.includes('your-github-username')) {
+    throw new Error(
+      'Folder selection is not configured yet: set PICKER_PAGE_URL in background.js ' +
+        'and host docs/picker.html (see README).',
+    );
+  }
+  const auth = await getAccessToken(true);
+  const state = crypto.randomUUID();
+  const fragment = new URLSearchParams({ access_token: auth.token, state });
+  const tab = await api.tabs.create({ url: `${PICKER_PAGE_URL}#${fragment}` });
+  await tokenStore.set({ [PICKER_STATE_KEY]: { state, tabId: tab.id } });
+  return { ok: true };
+}
+
+async function handleFolderPicked({ state, folder }, sender) {
+  const stored = await tokenStore.get(PICKER_STATE_KEY);
+  const pending = stored?.[PICKER_STATE_KEY];
+  if (!pending || pending.state !== state) {
+    return { ok: false, error: 'Unexpected picker result ignored.' };
+  }
+  await tokenStore.remove(PICKER_STATE_KEY);
+
+  if (folder) {
+    await api.storage.local.set({ [FOLDER_KEY]: { id: folder.id, name: folder.name } });
+    flashBadge('✓', '#188038');
+  }
+
+  // Give the page a moment to show its "selected" note, then close it.
+  const tabId = sender?.tab?.id ?? pending.tabId;
+  if (typeof tabId === 'number') {
+    setTimeout(() => api.tabs.remove(tabId).catch(() => {}), 1500);
+  }
+  return { ok: true };
+}
+
+// Forget the pending nonce if the user just closes the picker tab.
+api.tabs.onRemoved.addListener(async (tabId) => {
+  const stored = await tokenStore.get(PICKER_STATE_KEY);
+  if (stored?.[PICKER_STATE_KEY]?.tabId === tabId) {
+    await tokenStore.remove(PICKER_STATE_KEY);
+  }
+});
+
+async function createDriveFolder({ name }) {
+  const trimmed = typeof name === 'string' ? name.trim() : '';
+  if (!trimmed) {
+    throw new Error('A folder name is required.');
+  }
+  const parent = await getDriveFolder();
+
+  const doCreate = (token) =>
+    fetch('https://www.googleapis.com/drive/v3/files?fields=id,name', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: JSON.stringify({
+        name: trimmed,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: [parent.id],
+      }),
+    });
+
+  let auth = await getAccessToken(true);
+  let response = await doCreate(auth.token);
+  if (response.status === 401) {
+    await invalidateToken(auth);
+    auth = await getAccessToken(true);
+    response = await doCreate(auth.token);
+  }
+  if (!response.ok) {
+    throw new Error(await readDriveError(response));
+  }
+
+  const created = await response.json();
+  const selected = { id: created.id, name: created.name };
+  await api.storage.local.set({ [FOLDER_KEY]: selected });
+  return { ok: true, folder: selected };
 }
 
 // ---------------------------------------------------------------------------
@@ -307,8 +429,26 @@ function saveLastExportStatus(statusMessage, extra = {}) {
 // does not honour a Promise returned from an onMessage listener.
 // ---------------------------------------------------------------------------
 
-api.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+api.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message?.type) {
+    case 'drive-pick-folder':
+      launchFolderPicker()
+        .then(sendResponse)
+        .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
+      return true;
+
+    case 'folder-picked':
+      handleFolderPicked(message, sender)
+        .then(sendResponse)
+        .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
+      return true;
+
+    case 'drive-create-folder':
+      createDriveFolder(message)
+        .then(sendResponse)
+        .catch((error) => sendResponse({ ok: false, error: error?.message || String(error) }));
+      return true;
+
     case 'drive-export':
       exportToDrive(message)
         .then(async (result) => {

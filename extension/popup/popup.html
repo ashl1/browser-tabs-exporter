@@ -60,6 +60,22 @@
         <span class="btn-icon" aria-hidden="true">&#9998;</span>
         as native document
       </button>
+
+      <div class="folder-row">
+        <span class="folder-label">Folder: <strong id="folder-name">My Drive</strong></span>
+        <span class="folder-actions">
+          <button id="folder-change" class="btn btn-mini" type="button">Change&hellip;</button>
+          <button id="folder-new" class="btn btn-mini" type="button">New folder</button>
+        </span>
+      </div>
+
+      <div id="new-folder-panel" class="new-folder" hidden>
+        <input id="new-folder-name" type="text" placeholder="New folder name" maxlength="128">
+        <div class="confirm-actions">
+          <button id="new-folder-create" class="btn btn-mini" type="button">Create</button>
+          <button id="new-folder-cancel" class="btn btn-mini" type="button">Cancel</button>
+        </div>
+      </div>
     </div>
 
     <div id="status" class="status" role="status" aria-live="polite" hidden>
